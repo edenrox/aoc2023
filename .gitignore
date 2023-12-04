@@ -3,3 +3,6 @@
 
 # Maven output
 target
+
+# Local config
+.config
