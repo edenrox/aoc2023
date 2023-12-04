@@ -2,7 +2,7 @@ package com.hopkins.aoc.day4
 
 import java.io.File
 
-const val debug = true
+const val debug = false
 val scores = buildScores(20)
 
 /** Advent of Code 2023: Day 4 */
@@ -16,29 +16,36 @@ fun main() {
 
     // Sum the points from each card to get the total
     val totalPoints = lines.sumOf { line ->
-        // Split into sections around ":" and "|"
-        // Example: Card   1: 12 13 | 14 15  4
-        val (card, winning, ours) = line.split(":", "|")
-
-        // Extract the card number
-        val cardNumber: Int = card.substring(5).trim().toInt()
-
-        // Extract winning and our numbers
-        val winningNumbers = extractNumbers(winning).toSet()
-        val ourNumbers = extractNumbers(ours).toList()
-
-        // Calculate our numbers that match the winning set
-        val matches = ourNumbers.intersect(winningNumbers)
-
-        // Lookup the number of points our matches are worth
-        val points = scores[matches.size]
+        val cardInfo = extractCardInfo(line)
+        val points = cardInfo.getPoints()
 
         if (debug) {
-            println("Card $cardNumber: points=$points win=$winningNumbers ours=$ourNumbers")
+            println("Card {$cardInfo} points=$points matches=${cardInfo.getMatches()}")
         }
         points
     }
-    println("Total Points: $totalPoints")
+    println("Total Points: $totalPoints") // 23941
+}
+
+fun extractCardInfo(line: String): CardInfo {
+    // Split into sections around ":" and "|"
+    // Example: Card   1: 12 13 | 14 15  4
+    val (card, winning, ours) = line.split(":", "|")
+
+    // Extract the card number
+    val id: Int = card.substring(5).trim().toInt()
+
+    // Extract winning and our numbers
+    return CardInfo(id, extractNumbers(winning).toSet(), extractNumbers(ours).toList())
+}
+
+class CardInfo(private val id: Int, private val winners: Set<Int>, private val ours: List<Int>) {
+    fun getPoints(): Int =
+        scores[getMatches().size]
+    fun getMatches(): Collection<Int> =
+        ours.intersect(winners)
+
+    override fun toString(): String = "id=$id, winners=$winners, ours=$ours"
 }
 
 fun buildScores(count: Int) : List<Int> =
