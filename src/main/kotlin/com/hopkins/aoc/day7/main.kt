@@ -16,7 +16,7 @@ enum class HandType {
     HIGH_CARD
 }
 
-/** Advent of Code 2023: Day 6 */
+/** Advent of Code 2023: Day 7 */
 fun main() {
     val inputFile = File("input/input7.txt")
     val lines: List<String> = inputFile.readLines()
