@@ -3,6 +3,7 @@ package com.hopkins.aoc.day2
 import java.io.File
 
 const val debug = false
+const val part = 2
 val maxCubes = CubeInfo(red = 12, green = 13, blue = 14)
 
 /** Advent of Code 2023: Day 2 */
@@ -18,11 +19,26 @@ fun main() {
         gameInfoList.take(5).map { println("Game: ${it.id} isValid: ${it.isValid(maxCubes)}") }
     }
 
-    // Sum the Game IDs where the game is valid given the max number of cubes
-    val gameIdSum: Int = gameInfoList.filter { it.isValid(maxCubes) }.map { it.id }.sum()
+    if (part == 1) {
+        // Sum the Game IDs where the game is valid given the max number of cubes
+        val gameIdSum: Int = gameInfoList.filter { it.isValid(maxCubes) }.map { it.id }.sum()
 
-    println("gameIdSum: $gameIdSum") // 2771
+        println("gameIdSum: $gameIdSum") // 2771
+    } else {
+        val powerSum: Int = gameInfoList.sumOf { game ->
+            val minCubes = findMinCubes(game.cubes)
+            minCubes.red * minCubes.green * minCubes.blue
+        }
+        println("Power Sum: $powerSum")
+    }
 }
+
+fun findMinCubes(cubes: List<CubeInfo>): CubeInfo =
+    CubeInfo(
+        cubes.maxOf { it.red },
+        cubes.maxOf { it.green },
+        cubes.maxOf { it.blue }
+    )
 
 /** Parse a [GameInfo] from a line of input. */
 fun parseGame(line: String): GameInfo {
