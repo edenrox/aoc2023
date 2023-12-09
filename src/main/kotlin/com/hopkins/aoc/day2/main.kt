@@ -29,10 +29,11 @@ fun main() {
             val minCubes = findMinCubes(game.cubes)
             minCubes.red * minCubes.green * minCubes.blue
         }
-        println("Power Sum: $powerSum")
+        println("Power Sum: $powerSum") // 70924
     }
 }
 
+/** Returns the minimum number of cubes of each color required to play the specified set of games. */
 fun findMinCubes(cubes: List<CubeInfo>): CubeInfo =
     CubeInfo(
         cubes.maxOf { it.red },
