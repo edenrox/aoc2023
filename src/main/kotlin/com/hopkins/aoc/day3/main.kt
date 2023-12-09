@@ -2,7 +2,8 @@ package com.hopkins.aoc.day3
 
 import java.io.File
 
-const val debug = false
+const val debug = true
+const val part = 2
 val digitRange = '0'.rangeTo('9')
 
 /** Advent of Code 2023: Day 3 */
@@ -29,8 +30,8 @@ fun main() {
         }.filterNotNull()
 
     // Build a map of positions which are within proximity of a part
-    val partProximitySet: Set<Position> =
-        parts.flatMap { it.position.getSurrounding() }.toSet()
+    val partProximityMap: Map<Position, Part> =
+        parts.flatMap { part -> part.position.getSurrounding().map { it to part } }.toMap()
 
     if (debug) {
         // Print the parts (to debug)
@@ -51,31 +52,63 @@ fun main() {
             }
         }
 
-    // Filter to only part numbers within proximity
+    // Part 1 only: Filter to only part numbers within proximity
     val validParts: List<PartNumber> =
-        partNumbers.filter { partProximitySet.intersect(it.getPositions()).isNotEmpty() }
+        partNumbers.filter { partNumber ->
+            partProximityMap.keys.intersect(partNumber.getPositions()).isNotEmpty() }
+
+    // Part 2 only: Find pairs of parts that are both near the same gear
+    val partPairs: List<Pair<PartNumber, PartNumber>> =
+        parts.mapNotNull { part ->
+            val numberList: List<PartNumber> =
+                partNumbers.filter { partNumber -> isInProximity(part, partNumber) }
+            if (numberList.size == 2) {
+                Pair(numberList[0], numberList[1])
+            } else {
+                null
+            }
+        }
 
     if (debug) {
-        println("Valid Parts:");
-        validParts.take(3).forEach { println(" $it") }
+        if (part == 1) {
+            println("Valid Parts:");
+            validParts.take(3).forEach { println(" $it") }
+        } else {
+            println("Part Pairs:")
+            println("Pairs: $partPairs")
+        }
     }
 
-    val partNumberSum: Int = validParts.sumOf { it.toInt() }
-    println("Part Number Sum: $partNumberSum") // 535078
+    if (part == 1) {
+        val partNumberSum: Int = validParts.sumOf { it.toInt() }
+        println("Part Number Sum: $partNumberSum") // 535078
+    } else {
+        val gearRatioSum: Long = partPairs.map { it.first.toInt().toLong() * it.second.toInt().toLong() }.sum()
+        println("Gear ratio sum: $gearRatioSum")
+    }
 }
 
-fun isPart(c: Char) = c != '.' && !digitRange.contains(c)
+fun isInProximity(part: Part, number: PartNumber): Boolean =
+     part.position.getSurrounding().intersect(number.getPositions()).isNotEmpty()
+
+fun isPart(c: Char) =
+    if (part == 1) {
+        c != '.' && !digitRange.contains(c)
+    } else {
+        c == '*'
+    }
 
 val surroundingIntRange = IntRange(-1, 1)
 
 data class Position(val x: Int, val y: Int) {
     override fun toString(): String = "[$x, $y]"
 
-    fun getSurrounding(): List<Position> =
+    fun getSurrounding(): Set<Position> =
         surroundingIntRange.flatMap { dx ->
             surroundingIntRange.map { dy ->
                 Position(x + dx, y + dy)
             }}
+            .toSet()
 }
 
 class Part(val symbol: Char, val position: Position) {
