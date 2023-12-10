@@ -2,7 +2,8 @@ package com.hopkins.aoc.day4
 
 import java.io.File
 
-const val debug = false
+const val debug = true
+const val part = 2
 val scores = buildScores(20)
 
 /** Advent of Code 2023: Day 4 */
@@ -24,7 +25,31 @@ fun main() {
         }
         points
     }
-    println("Total Points: $totalPoints") // 23941
+
+    if (part == 1) {
+        println("Total Points: $totalPoints") // 23941
+        return
+    }
+
+    val cardMap: Map<Int, CardInfo> =
+        lines.map { line -> extractCardInfo(line) }.associateBy { it.id }
+    var numCards = 0
+    var cards = cardMap.values
+    var round = 1
+    while (cards.isNotEmpty()) {
+        if (debug) {
+            println("Round: $round Cards: ${cards.map { it.id }}")
+        }
+        numCards += cards.size
+        round++
+        val wonCards = cards.flatMap { card ->
+            val numMatches = card.getMatches().size
+
+            IntRange(card.id + 1, card.id + numMatches)
+        }.mapNotNull { cardMap[it] }
+        cards = wonCards
+    }
+    println("Num Cards: $numCards")
 }
 
 fun extractCardInfo(line: String): CardInfo {
@@ -39,7 +64,7 @@ fun extractCardInfo(line: String): CardInfo {
     return CardInfo(id, extractNumbers(winning).toSet(), extractNumbers(ours).toList())
 }
 
-class CardInfo(private val id: Int, private val winners: Set<Int>, private val ours: List<Int>) {
+class CardInfo(val id: Int, private val winners: Set<Int>, private val ours: List<Int>) {
     fun getPoints(): Int =
         scores[getMatches().size]
     fun getMatches(): Collection<Int> =
