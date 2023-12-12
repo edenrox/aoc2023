@@ -67,8 +67,8 @@ fun main() {
     println("Distance Sum: $distanceSum") // 857986849428
 }
 
-
 data class Galaxy(val id: Int, val position: Point)
+
 data class Point(val x: Int, val y: Int) {
 
     fun add(dx: Int, dy: Int) = Point(x + dx, y + dy)
