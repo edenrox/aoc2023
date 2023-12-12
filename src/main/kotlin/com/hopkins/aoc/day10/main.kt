@@ -5,7 +5,7 @@ import java.io.File
 const val debug = false
 const val part = 2
 
-/** Advent of Code 2023: Day 9 */
+/** Advent of Code 2023: Day 10 */
 fun main() {
     val inputFile = File("input/input10.txt")
     val lines: List<String> = inputFile.readLines()
