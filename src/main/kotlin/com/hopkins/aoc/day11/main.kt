@@ -6,7 +6,7 @@ import kotlin.math.abs
 const val debug = true
 const val part = 2
 
-/** Advent of Code 2023: Day 10 */
+/** Advent of Code 2023: Day 11 */
 fun main() {
     val lines: List<String> = File("input/input11.txt").readLines()
 
