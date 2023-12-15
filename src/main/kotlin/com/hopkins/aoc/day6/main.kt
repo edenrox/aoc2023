@@ -3,6 +3,7 @@ package com.hopkins.aoc.day6
 import java.io.File
 
 const val debug = true
+const val part = 2
 
 /** Advent of Code 2023: Day 6 */
 fun main() {
@@ -34,12 +35,15 @@ fun main() {
  * Start with holding the button for 1 second, then 2 seconds, etc.  then calculate
  * the distance travelled in the time remaining.
  */
-fun findWays(totalTime: Int, distance: Int): Int {
-    return IntRange(1, totalTime - 1).count { calculateDistanceTravelled(it, totalTime) > distance }
+fun findWays(totalTime: Long, distance: Long): Int {
+    val range = LongRange(1, totalTime - 1)
+    val start = range.first { calculateDistanceTravelled(it, totalTime) > distance }
+    val end = range.last { calculateDistanceTravelled(it, totalTime) > distance }
+    return LongRange(start, end).count()
 }
 
 /** Calculate the distance traveled given the time held and total time. */
-fun calculateDistanceTravelled(timeHeld: Int, totalTime: Int): Int {
+fun calculateDistanceTravelled(timeHeld: Long, totalTime: Long): Long {
     // Speed = 1 mm/s for each second we hold the button
     val speed = timeHeld
 
@@ -48,7 +52,11 @@ fun calculateDistanceTravelled(timeHeld: Int, totalTime: Int): Int {
 }
 
 /** Returns list of integers after the ":" separated by 1 or more spaces. */
-fun readValues(line: String): List<Int> {
+fun readValues(line: String): List<Long> {
     val (_, values) = line.split(":")
-    return values.trim().split(" ").filterNot { it.trim().isBlank() }.map { it.toInt() }
+    if (part == 1) {
+        return values.split(" ").filterNot { it.trim().isBlank() }.map { it.toLong() }
+    } else {
+        return listOf(values.split(" ").filterNot { it.trim().isBlank() }.joinToString(separator = "").toLong())
+    }
 }
