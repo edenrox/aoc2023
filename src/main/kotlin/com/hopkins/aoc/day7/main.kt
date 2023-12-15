@@ -3,8 +3,18 @@ package com.hopkins.aoc.day7
 import java.io.File
 
 const val debug = true
+const val part = 2
 
-val allCards = listOf("A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2", "1")
+val defaultCardOrder: List<String> =
+    listOf("A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2", "1")
+
+val allCards =
+    if (part == 1) {
+        defaultCardOrder
+    } else {
+        // In part 2, "J" is a joker and it is a low-value card
+        defaultCardOrder.filter { it != "J" } + listOf("J")
+    }
 
 enum class HandType {
     FIVE_OF_A_KIND,
@@ -23,6 +33,7 @@ fun main() {
 
     val hands: List<CamelHand> = lines.map { readHand(it) }
     if (debug) {
+        println("All Cards: $allCards")
         println("Hands:")
         hands.take(5).forEach { println(" $it") }
     }
@@ -30,7 +41,7 @@ fun main() {
         hands.sortedWith(compareBy( { it.type }, { it.getCardsValues() } ))
     if (debug) {
         println("Sorted Hands:")
-        sortedHands.take(5).forEach { println(" $it") }
+        sortedHands.take(500).takeLast(20).forEach { println(" $it") }
     }
 
     val topValue = hands.size
@@ -44,6 +55,8 @@ fun main() {
 
     val result = handValues.sum()
     println("Result: $result")
+    // Part1 = 250474325 (correct)
+    // Part2 = 249010224 (incorrect)
 }
 
 /** Returns a [CamelHand] instance parsed from the specified line. */
@@ -54,10 +67,33 @@ fun readHand(line: String): CamelHand {
     return CamelHand(cards, bidString.toInt())
 }
 
+fun transformHand(cards: String): String {
+    if (part == 1) {
+        // Part 1: no jokers in the deck
+        return cards
+    }
+    if (!cards.contains("J")) {
+        // Part 2: no jokers in the hand
+        return cards
+    }
+    if (cards == "JJJJJ") {
+        return cards
+    }
+
+    val cardMap = cards.filter { it != 'J' }.groupingBy { it }.eachCount()
+    val maxCount = cardMap.values.max()
+    val bestCard =
+        cardMap.filter { entry -> entry.value == maxCount }.minBy { entry -> allCards.indexOf(entry.key.toString()) }
+    return cards.replace("J", bestCard.key.toString())
+}
+
 /** Figure out the best hand which can be formed from the specified cards. */
 fun calculateType(cards: String) : HandType {
-    // Group and count cards by type, then sort descending
-    val cardCountList: List<Int> = cards.groupingBy { it }.eachCount().values.sortedDescending()
+    // Group and count cards by type
+    val cardMap = cards.groupingBy { it }.eachCount()
+
+    // Sort by descending count
+    val cardCountList: List<Int> = cardMap.values.sortedDescending()
 
     val max = cardCountList.first()
     return when (max) {
@@ -71,7 +107,7 @@ fun calculateType(cards: String) : HandType {
 
 /** Represents a set of 5 cards and a bid value. */
 class CamelHand(val cards: String, val bid: Int) {
-    val type: HandType = calculateType(cards)
+    val type: HandType = calculateType(transformHand(cards))
 
     /** Returns a string that represents the value of the cards (00 being high, 13 being low). */
     fun getCardsValues(): String =
