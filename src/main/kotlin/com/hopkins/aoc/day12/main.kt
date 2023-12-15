@@ -7,130 +7,120 @@ const val part = 2
 
 /** Advent of Code 2023: Day 12 */
 fun main() {
-    val lines: List<String> = File("input/input12-example.txt").readLines()
+    val lines: List<String> = File("input/input12.txt").readLines()
 
-    val springLookup: Map<Char, SpringType> = SpringType.values().associateBy { it.symbol }
-
-    val sum = lines.sumOf { line ->
-        val max = 5
-        var (left, right) = line.split(" ")
-        if (part == 2) {
+    val lineInputs: List<LineInput> =
+        lines.mapIndexed { index, line ->
+            val max = if (part == 2) 5 else 1
+            var (left, right) = line.split(" ")
             left = (0 until max).joinToString(separator = "?") { left }
             right = (0 until max).joinToString(separator = ",") { right }
-        }
-        val types = left.map { c -> springLookup[c]!! }
-        val counts = right.split(",").map { it.toInt() }
-        val numUnknowns = types.count { it == SpringType.UNKNOWN }
-        val numPossibilities = Math.pow(2.0, numUnknowns.toDouble()).toLong()
-
-        if (debug) {
-            printTypes(types)
-            println("Counts: $counts")
-            println("Possibilities: $numPossibilities")
+            LineInput(index + 1, left, right)
         }
 
-        // Generate all possible sequences
-        val possibilities: List<List<SpringType>> =
-            //emptyList()
-            if (types.last() == SpringType.UNKNOWN) {
-                generatePossibilities(types.reversed(), counts.reversed())
-            } else {
-                generatePossibilities(types, counts)
-            }
-        println("Generated: ${possibilities.size}")
-        //require(numPossibilities == possibilities.size)
-
-        // Only count valid possibilities
-        var validPossibilities = possibilities.count { isValid(it, counts) }
-        println("Valid: $validPossibilities")
-        validPossibilities
-    }
+    val sum: Long =
+        lineInputs.sumOf {
+            val numWays = countNumWaysCached(it.groups, it.counts)
+            println("Line Input: $it")
+            println("Num ways: $numWays")
+            numWays
+        }
     println("Sum: $sum")
 }
 
-fun printTypes(types: List<SpringType>) {
-    println(types.map { it.symbol }.joinToString(prefix = "[", postfix = "]"))
-}
+val cache = mutableMapOf<CacheKey, Long>()
 
-fun generatePossibilities(types: List<SpringType>, counts: List<Int>): List<List<SpringType>> {
-    val unknownPositions: List<Int> =
-        types.indices.filter { types[it] == SpringType.UNKNOWN }
-    val output = mutableListOf(emptyList<SpringType>())
-    val totalDamaged = counts.sum()
-    println("|".repeat(unknownPositions.size))
-    unknownPositions.forEach { position ->
-        print(".")
-        val numPossiblyDamaged = types.subList(position, types.size - 1).count { type -> type == SpringType.DAMAGED || type == SpringType.UNKNOWN}
-        val segment = types.subList(output[0].size, position)
-        val newOutput = output.flatMap {
-            listOf(
-                it + segment + listOf(SpringType.OPERATIONAL),
-                it + segment + listOf(SpringType.DAMAGED))
-        }.filter {
-            val numDamaged = it.count { type -> type == SpringType.DAMAGED}
-            val checkCounts = combineCounts(0, it)
-            val prefix = checkCounts.dropLast(1)
-            var isValid = false
-            if (numDamaged + numPossiblyDamaged < totalDamaged) {
-                isValid = false
-            } else if (checkCounts.size > counts.size) {
-                isValid = false
-            } else if (checkCounts == counts.take(checkCounts.size)) {
-                isValid = true
-            } else if (prefix == counts.take(prefix.size) &&
-                (checkCounts.last() <= counts[prefix.size])) {
-                isValid = true
-            }
-            if (!isValid) {
-                //println("Filter start=$it checkCounts=$checkCounts prefix=$prefix")
-            }
-            isValid
-        }
-        if (newOutput.isEmpty()) {
-            println("Output is empty")
-        }
-        output.clear()
-        output.addAll(newOutput)
+fun countNumWaysCached(groups: List<String>, counts: List<Int>): Long {
+    val key = CacheKey(groups, counts)
+    if (cache.containsKey(key)) {
+        return cache[key]!!
     }
-    println()
-    val endPositions = types.size - 1 - unknownPositions.last()
-    if (endPositions > 0) {
-        val newOutput = output.map { it + types.takeLast(endPositions) }
-        output.clear()
-        output.addAll(newOutput)
-    }
-    //println("Output: ${output.joinToString(separator = "\n")}")
-    return output
-}
-
-
-fun isValid(types: List<SpringType>, counts: List<Int>): Boolean {
-    val typeCounts: List<Int> = combineCounts(0, types)
-    return typeCounts == counts
-}
-
-fun combineCounts(acc: Int, remaining: List<SpringType>): List<Int> {
-    if (remaining.isEmpty()) {
-        return if (acc == 0) {
-            emptyList()
-        } else {
-            listOf(acc)
+    val result = countNumWays(key.groups, key.counts)
+    cache[key] = result
+    if (debug) {
+        if (counts.size < 2) {
+            println("key=$key, result=$result")
         }
     }
-    return when (remaining.first()) {
-        SpringType.OPERATIONAL ->
-            if (acc == 0) {
-                combineCounts(0, remaining.drop(1))
+    return result
+}
+
+fun countNumWays(groups: List<String>, counts: List<Int>): Long {
+    if (groups.isEmpty() || (groups.size == 1 && groups.first() == "")) {
+        // Base cases: groups is empty
+        return if (counts.isEmpty()) 1 else 0
+    }
+
+    if (groups.size == 1) {
+        val firstGroup = groups[0]
+        if (firstGroup.length == 1) {
+            // Base case: groups has 1 element and it is 1 character
+            if (firstGroup == "#") {
+                return if (counts.size == 1 && counts.first() == 1) {
+                    1
+                } else {
+                    0
+                }
             } else {
-                listOf(acc) + combineCounts(0, remaining.drop(1))
+                require(firstGroup == "?")
+                return if (counts.isEmpty()) {
+                    1
+                } else if (counts.size == 1 && counts.first() == 1) {
+                    1
+                } else {
+                    0
+                }
             }
-        SpringType.DAMAGED -> combineCounts(acc + 1, remaining.drop(1))
-        SpringType.UNKNOWN -> throw IllegalArgumentException("remaining contains UNKNOWN")
+        } else if (!firstGroup.contains("?")) {
+            // Base case: group contains only "#"
+            return if (counts.size == 1 && counts.first() == firstGroup.length) 1 else 0
+        } else if (counts.isEmpty()) {
+            // Base case: there are no counts, so there can be no more operational springs
+            return if (firstGroup.contains("#")) {
+                0
+            } else {
+                1
+            }
+        } else {
+            require(counts.isNotEmpty())
+
+            // Recursive case: group has 1 element and it is 2+ characters with 1 or more '?'s
+            val partitionPositions = firstGroup.indices.filter { firstGroup[it] == '?'}
+            var ways = 0L
+
+            // Option 1: we don't partition the group, thus it is all #
+            if (counts.size == 1 && counts.first() == firstGroup.length) {
+                return 1
+            }
+            // Option 2: we partition the group at one of the question marks
+            for (position in partitionPositions) {
+                val leftGroup = listOf(firstGroup.take(position).replace("?", "#"))
+                val rightGroup = listOf(firstGroup.drop(position + 1))
+                //println("firstGroup=$firstGroup partitionPos=$position left=$leftGroup right=$rightGroup")
+                val leftWays = countNumWaysCached(leftGroup, emptyList()) * countNumWaysCached(rightGroup, counts)
+                val rightWays = countNumWaysCached(leftGroup, counts.take(1)) * countNumWaysCached(rightGroup, counts.drop(1))
+                ways += leftWays + rightWays
+
+                //if (firstGroup == "????" && ways > 0) {
+                    println("O2: group=$firstGroup left=${leftGroup[0]} right=${rightGroup[0]} counts=$counts leftWay=$leftWays rightWays=$rightWays")
+                //}
+            }
+            return ways
+        }
+    } else {
+        var ways = 0L
+        for (i in 0..counts.size) {
+            val leftWays = countNumWaysCached(groups.take(1), counts.take(i))
+            val rightWays = countNumWaysCached(groups.drop(1), counts.drop(i))
+            ways += leftWays * rightWays
+        }
+        return ways
     }
 }
 
-enum class SpringType(val symbol: Char) {
-    OPERATIONAL('.'),
-    DAMAGED('#'),
-    UNKNOWN('?'),
+data class CacheKey(val groups: List<String>, val counts: List<Int>)
+
+data class LineInput(val index: Int, val left: String, val right: String) {
+    val groups = left.split(".").filter { it.isNotBlank() }
+    val counts = right.split(",").map { it.toInt() }
 }
