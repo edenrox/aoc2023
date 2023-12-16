@@ -3,93 +3,91 @@ package com.hopkins.aoc.day5
 import java.io.File
 
 const val debug = true
-enum class MapType {
-    SOIL,
-    FERTILIZER,
-    WATER,
-    LIGHT,
-    TEMPERATURE,
-    HUMIDITY,
-    LOCATION
-}
+const val part = 2
 
 /** Advent of Code 2023: Day 5 */
 fun main() {
-    val inputFile = File("input/input5.txt")
-    val lines: List<String> = inputFile.readLines()
-    var seeds: List<Long> = emptyList()
-    var maps: MutableMap<MapType, MutableList<MapRange>> = mutableMapOf()
-    for (type in MapType.values()) {
-        maps[type] = mutableListOf()
-    }
-    var currentType: MapType? = null
-    lines.map { it.trim() } .forEach { line ->
-        when {
-            line.isEmpty() -> false // skip this line
-            line.startsWith("seeds:") -> seeds = readSeeds(line)
-            line.endsWith("map:") -> currentType = readMapType(line)
-            else -> {
-                if (debug) {
-                    println("read $currentType map line")
-                }
-                maps[currentType!!]!!.add(readMapLine(line))
-            }
-        }
-    }
+    // Read the input
+    val lines: List<String> = File("input/input5.txt").readLines()
 
+    // Step 1: read the seeds
+    val (_, seedsPart) = lines[0].split(": ")
+    val seedNumbers = seedsPart.split(" ").map { it.toLong() }
+    val seedRanges = if (part == 1) {
+        seedNumbers.map { LongRange(it, it) }
+    } else {
+        seedNumbers.zipWithNext{ a, b -> LongRange(a, a + b - 1)}.filterIndexed { index, _ -> index % 2 == 0}
+    }
     if (debug) {
-        println("Seeds: $seeds")
-
-        println("Soil Map: ${maps[MapType.SOIL]}")
+        println("Seed Ranges:")
+        println(seedRanges)
     }
-    var output: MutableMap<Long, Long> = mutableMapOf()
-    for (seed in seeds) {
-        var current = seed
-        for (type in MapType.values()) {
-            val ranges: List<MapRange> = maps[type]!!
-            ranges.filter { it.contains(current) }
-            for (range in ranges) {
-                if (range.contains(current)) {
-                    current = range.convert(current)
+
+    // Step 2: read the Range increments
+    val ranges =
+        lines.drop(1).filter { it.isNotBlank() }.fold(mutableListOf<MutableList<RangeIncrement>>()) {
+                acc, line ->
+            if (line.endsWith("map:")) {
+                acc.add(mutableListOf<RangeIncrement>())
+            } else {
+                acc.last().add(parseRangeIncrement(line))
+            }
+            acc
+        }
+
+    // Step 3: map the seeds through the ranges
+    var current: List<LongRange> = seedRanges
+    for (rangeList in ranges) {
+        val splits: List<Long> = rangeList.flatMap { listOf(it.range.first, it.range.last)}.sorted().distinct()
+        val splitRanges = current.flatMap { inputRange -> splitRange(inputRange, splits) }
+        if (debug) {
+            println("Range List: $rangeList")
+            println("Splits: $splits")
+            println("Split Ranges: $splitRanges")
+        }
+
+        current = splitRanges.map { inputRange ->
+            var output = inputRange
+            for (rangeIncrement in rangeList) {
+                if (rangeIncrement.contains(inputRange)) {
+                    output = rangeIncrement.convert(inputRange)
                     break
                 }
             }
+            output
         }
-        output[seed] = current
     }
-    if (debug) {
-        println("Output: $output")
+    val minLocation = current.minOf { it.first }
+    println("Minimum location: $minLocation")
+
+    // Part 1: 621354867
+    // Part 2:
+}
+
+fun parseRangeIncrement(line: String): RangeIncrement {
+    val (dest, src,length) = line.split(" ").map { it.toLong() }
+    return RangeIncrement(LongRange(src, src + length - 1), dest - src)
+}
+
+data class RangeIncrement(val range: LongRange, val increment: Long) {
+
+    fun contains(inputRange: LongRange) = range.contains(inputRange.first)
+
+    fun convert(inputRange: LongRange) = LongRange(inputRange.first + increment, inputRange.last + increment)
+}
+
+fun splitRange(range: LongRange, splits: List<Long>): List<LongRange> {
+    return if (splits.isEmpty()) {
+        listOf(range)
+    } else if (range.contains(splits.first())) {
+        val (left, right) = splitRange(range, splits.first())
+        listOf(left) + splitRange(right, splits.drop(1))
+    } else {
+        splitRange(range, splits.drop(1))
     }
-    val minLocation = output.minBy { it.value }.value
-    println("Result: $minLocation")
 }
 
-class MapRange(val sourceOffset: Long, val destOffset: Long, val length: Long) {
-    fun contains(value: Long): Boolean =
-        value >= sourceOffset && value < sourceOffset + length
-
-    fun convert(value: Long): Long =
-        destOffset + (value - sourceOffset)
-
-    override fun toString(): String =
-        "Range {source=[$sourceOffset-${sourceOffset+length-1}] dest=[$destOffset-${destOffset + length-1}]}"
-}
-fun readMapType(line: String): MapType {
-    val lastDash = line.lastIndexOf("-")
-    val lastMap = line.lastIndexOf(" map:")
-    val name = line.substring(lastDash + 1, lastMap).uppercase()
-    return MapType.valueOf(name)
-}
-
-fun readMapLine(line: String): MapRange {
-    val (destOffset, sourceOffset, length) = line.split(" ").map { it.toLong() }
-    return MapRange(sourceOffset, destOffset, length)
-}
-
-fun readSeeds(line: String): List<Long> {
-    if (debug) {
-        println("read seeds")
-    }
-    val (_, seeds) = line.split(":")
-    return seeds.trim().split(" ").map { it.toLong() }
+fun splitRange(range: LongRange, split: Long): List<LongRange> {
+    require(range.contains(split))
+    return listOf(LongRange(range.start, split - 1), LongRange(split, range.last))
 }
