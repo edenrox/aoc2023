@@ -6,6 +6,8 @@ import java.lang.IllegalStateException
 const val debug = false
 const val part = 2
 
+// A history of the Beam's we've seen in the past.  We use this to avoid following
+// cycles
 val history = mutableSetOf<Beam>()
 
 /** Advent of Code 2023: Day 16 */
@@ -17,6 +19,7 @@ fun main() {
         println("Num lines: $numLines")
     }
 
+    // Step 1: read the details of the map
     val map: Map<Point, Char> =
         lines.flatMapIndexed { y, line ->
             line.mapIndexedNotNull { x, c ->
@@ -31,6 +34,7 @@ fun main() {
     val mapHeight = lines.size
 
     if (debug) {
+        // Output the map (ensure we read it right)
         println("Map")
         println("===")
         for (y in 0 until mapWidth) {
@@ -42,6 +46,8 @@ fun main() {
         }
     }
 
+    // Step 2: Calculate the list of start Beams
+    // In part 1, there is a single start, in Part 2 there are many starts.
     val startList: List<Beam> =
         if (part == 1) {
             listOf(Beam(Point(0, 0), directionRight))
@@ -58,9 +64,12 @@ fun main() {
             }
         }
 
+    // Step 3:
     val maxEnergy =
         startList.maxOf { start ->
             history.clear()
+
+            // Iterative BFS traversal of the map
             val current = mutableListOf(start)
             while (current.isNotEmpty()) {
                 val beam = current.removeFirst()
@@ -72,10 +81,12 @@ fun main() {
                 current.addAll(next)
             }
 
+            // Calculate the set of energized tiles
             val energized =
                 history.map { it.position }.toSet()
 
             if (debug) {
+                // Output the energized map
                 println("Energized")
                 println("=========")
                 for (y in 0 until mapWidth) {
@@ -93,15 +104,21 @@ fun main() {
     // Part 2: 8089
 }
 
+/** Returns `true` if the specified position is outside the bounds of the map. */
 fun isOutsideBounds(position: Point, width: Int, height: Int) =
     position.x < 0 || position.y < 0 || position.x >= width || position.y >= height
 
 data class Beam(val position: Point, val direction: Point) {
 
+    /**
+     * Returns a [List] of [Beam]s created by adding the specified
+     * directions to the current position.
+     */
     private fun newBeams(vararg directions: Point): List<Beam> {
         return directions.map { Beam(position.add(it), it) }
     }
 
+    /** Returns the next [Beam]s when we advance this [Beam]. */
     fun nextBeams(map: Map<Point, Char>): List<Beam> {
         val tile: Char = map.getOrDefault(position, '.')
         return when (tile) {
@@ -121,6 +138,7 @@ data class Beam(val position: Point, val direction: Point) {
         }
     }
 
+    /** Returns the next direction when a beam hits a corner tile. */
     private fun getNextDirection(cornerTile: Char): Point {
         require(cornerTile in "\\/")
         return when (direction) {
@@ -133,13 +151,14 @@ data class Beam(val position: Point, val direction: Point) {
     }
 }
 
+// Some known direction vectors
 val directionUp = Point(0, -1)
 val directionLeft = Point(-1, 0)
 val directionRight = Point(1, 0)
 val directionDown = Point(0 , 1)
-
 val verticalDirections = setOf(directionUp, directionDown)
 
+/** Represents a point in 2 dimensions. */
 data class Point(val x: Int, val y: Int) {
 
     fun add(dx: Int, dy: Int): Point =
