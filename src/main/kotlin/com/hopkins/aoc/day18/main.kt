@@ -6,7 +6,7 @@ import java.io.File
 const val debug = true
 const val part = 2
 
-/** Advent of Code 2023: Day 17 */
+/** Advent of Code 2023: Day 18 */
 fun main() {
     // Step 1: Read the file input
     val lines: List<String> = File("input/input18.txt").readLines()
@@ -19,93 +19,116 @@ fun main() {
     // Step 2: Build the map
     val map = mutableMapOf<Point, Point>()
     val start = Point.of(100, 100)
-    map.put(start, Point.ORIGIN)
+    map[start] = Point.ORIGIN
 
     var current = start
+    var areaAlongPath = 0L
+    val foundCorners = mutableSetOf<Point>(start)
+    val lineCounts = mutableMapOf<Int, Int>()
     lines.forEach { line ->
         // Parse the line
         val (dirStr, countStr, colorPart) = line.split(" ")
         val color = colorPart.substring(2, colorPart.indexOf(")"))
-        val direction = directionLookup1[dirStr]!!
-        val count = countStr.toInt()
-        println("Color: $color Count: $count")
-        for (index in 0 until count) {
-            current = current.add(direction)
-            map[current] = if (index == count - 1) Point.ORIGIN else direction
+        val direction =
+            if (part == 1) {
+                directionLookup1[dirStr]!!
+            } else {
+                directionLookup2[color.last()]!!
+            }
+        val count =
+            if (part == 1) {
+                countStr.toInt()
+            } else {
+                color.substring(0, 5).toInt(radix = 16)
+            }
+        areaAlongPath += count
+        if (direction == directionUp) {
+
         }
+    }
+    print("Area Along Path=$areaAlongPath")
+    if (true) {
+        return
     }
 
     val left = map.keys.minOf { it.x }
     val right = map.keys.maxOf { it.x }
     val top = map.keys.minOf { it.y }
     val bottom = map.keys.maxOf { it.y }
+    val width = right - left + 1
+    val height = bottom - top + 1
 
     if (debug) {
         println()
         println("Step 2: Build the map")
         println("=======")
-        println("  width: ${right - left + 1}")
-        println("  height: ${bottom - top + 1}")
-        for (y in top..bottom) {
-            print("  ")
-            for (x in left..right) {
-                val point = Point.of(x, y)
-                val direction = map[point]
-                print(
-                    when (direction) {
-                        directionUp, directionDown -> "|"
-                        directionLeft, directionRight -> "-"
-                        Point.ORIGIN -> "+"
-                        else -> "."
-                    }
-                )
+        println("  width: $width")
+        println("  height: $height")
+        if (width < 11) {
+            for (y in top..bottom) {
+                print("  ")
+                for (x in left..right) {
+                    val point = Point.of(x, y)
+                    val direction = map[point]
+                    print(
+                        when (direction) {
+                            directionUp, directionDown -> "|"
+                            directionLeft, directionRight -> "-"
+                            Point.ORIGIN -> "+"
+                            else -> "."
+                        }
+                    )
+                }
+                println()
             }
-            println()
         }
     }
 
     // Step 3: Count the area inside the map
-    var area = 0L
-    for (y in top .. bottom) {
-        var isInside = false
-        var lastCornerDirection = Point.ORIGIN
-        var lineArea = 0L
-        for (x in left..right) {
-            val point = Point.of(x, y)
-            val direction = map[point]
-            if (direction != null) {
-                lineArea++
-                if (direction == directionUp || direction == directionDown) {
-                    // Vertical piece, we're stepping in or out of the whole
-                    isInside = !isInside
-                } else if (direction == Point.ORIGIN) {
-                    val cornerDirection =
-                        if (map.containsKey(point.add(directionUp))) {
-                            directionUp
-                        } else {
-                            directionDown
-                        }
-                    // Corner piece, we
-                    if (lastCornerDirection == Point.ORIGIN) {
-                        lastCornerDirection = cornerDirection
-                    } else {
-                        if (lastCornerDirection != cornerDirection) {
-                            isInside = !isInside
-                        }
-                        lastCornerDirection = Point.ORIGIN
-                    }
-                }
-            } else {
-                if (isInside) {
-                    lineArea++
-                }
+    val corners = map.filter {(key, value) -> value == Point.ORIGIN }
+    println("Num corners: ${corners.size}")
+
+    val cornersByRow = corners.map { it.key.y to it.key.x }.groupBy({ it.first }, {it.second })
+    val importantCorners = mutableSetOf<Point>()
+    for (row in cornersByRow.keys) {
+        val cornersInRow = cornersByRow[row]!!.sorted()
+        println("row=$row corners=$cornersInRow")
+        require(cornersInRow.size % 2 == 0)
+        for (index in 0 until cornersInRow.size / 2) {
+            val first = cornersInRow[index * 2]
+            val c1 = Point.of(first, row)
+            val second = cornersInRow[index * 2 + 1]
+            val c2 = Point.of(second, row)
+            val t1 = map[c1.add(directionUp)] == null
+            val t2 = map[c2.add(directionUp)] == null
+            if (t1 != t2) {
+                importantCorners.add(if (index % 2 == 0) c2 else c1)
             }
         }
-        if (debug) {
-            println("Line num=$y area=$lineArea")
-        }
-        area += lineArea
     }
+    val importantCornersByRow = importantCorners.map { it.y to it.x }.groupBy({ it.first }, {it.second })
+    println("Num important corners: ${importantCorners}")
+
+    val verticalByRow = map
+        .filter { it.value == directionUp || it.value == directionDown }
+        .entries
+        .groupBy( {it.key.y}, {it.key.x})
+    var areaInPath = 0L
+    for (row in verticalByRow.keys) {
+        val rowValues = (verticalByRow[row]!! + (importantCornersByRow[row] ?: emptyList())).sorted()
+        if (rowValues.size % 2 != 0) {
+            println("row=$row values=$rowValues")
+            println("Hi")
+        }
+        for (index in 0 until rowValues.size / 2) {
+            val first = rowValues[index * 2]
+            val second = rowValues[index * 2 + 1]
+            areaInPath += (second - first - 1)
+        }
+    }
+
+
+    var area = areaAlongPath - 1 + areaInPath
     println("Total area inside: $area") // 49061
 }
 
