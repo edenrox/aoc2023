@@ -33,14 +33,49 @@ fun main() {
         modules.forEach { println("  $it") }
     }
 
+    if (debug) {
+        var startList = listOf("rx")
+        for (i in 1..4) {
+            val next = mutableListOf<String>()
+            for (start in startList) {
+                val inputs = moduleInputs[start] ?: emptyList()
+                println("Node: $start Inputs: $inputs")
+                next.addAll(inputs)
+            }
+            startList = next.toList()
+        }
+
+        println("")
+    }
+
+    val a = mapOf("a" to FlipFlopState(), "b" to FlipFlopState(), "c" to ConjunctionState(listOf("a", "b")))
+    val b = mapOf("a" to FlipFlopState(), "b" to FlipFlopState(), "c" to ConjunctionState(listOf("a", "b")))
+    println("a=$a, b=$b")
+    require(a == b)
+    b["a"]!!.update(Pulse(PulseType.LOW, "z", "a"))
+    require(a != b)
+    b["a"]!!.update(Pulse(PulseType.LOW, "z", "a"))
+    require(a == b)
+    b["c"]!!.update(Pulse(PulseType.HIGH, "a", "c"))
+    require(a != b)
+    b["c"]!!.update(Pulse(PulseType.LOW, "a", "c"))
+    require(a == b)
+
+    val nodesToIgnore = setOf("rx", "sq", "kk", "vt", "xr") //, "fv")
+    val seenStates = mutableMapOf<List<ModuleState>, Int>()
+
     // Step 3: Simulate a button press
     var lowCount = 0L
     var highCount = 0L
-    for (i in 0 until 1000) {
+    for (i in 0 until 10_000_000) {
+        var numRx = 0L
         val current = mutableListOf(Pulse(PulseType.LOW, "button", "broadcaster"))
         while (current.isNotEmpty()) {
             val pulse = current.removeFirst()
             //println("pulse=$pulse, currentSize=${current.size}")
+            if (pulse.destination == "sq") {
+                numRx++
+            }
             if (pulse.type == PulseType.LOW) {
                 lowCount++
             } else {
@@ -49,6 +84,21 @@ fun main() {
             val nextPulses = sendPulse(pulse, moduleMap, moduleStateMap)
             current.addAll(nextPulses)
         }
+        val endState = moduleStateMap
+            .filterValues { state -> state != EmptyState}
+            .filterKeys { !nodesToIgnore.contains(it) }
+            .values
+            .toList()
+        val endStateSummary = endState.toString()
+        //println("index=$i summary=$endStateSummary")
+        if (seenStates.containsKey(endState)) {
+            val cycleStart = seenStates[endState]!!
+            println("Cycle found at: index=$i start=$cycleStart")
+            break;
+        } else {
+            seenStates[endState] = i
+        }
+
     }
 
     println("low=$lowCount high=$highCount")
@@ -147,9 +197,22 @@ class FlipFlopState: ModuleState {
             isOn = !isOn
         }
     }
+
+    override fun toString(): String =
+        "F{${if (isOn) 1 else 0}}"
+
+    override fun hashCode(): Int = isOn.hashCode()
+
+    override fun equals(other: Any?): Boolean {
+        return if (other is FlipFlopState) {
+            isOn == other.isOn
+        } else {
+            false
+        }
+    }
 }
 
-class ConjunctionState(inputs: List<String>): ModuleState {
+class ConjunctionState(private val inputs: List<String>): ModuleState {
     private val lastReceived = inputs.associateBy({it}, {PulseType.LOW}).toMutableMap()
 
     fun isAllHigh(): Boolean =
@@ -157,6 +220,21 @@ class ConjunctionState(inputs: List<String>): ModuleState {
 
     override fun update(pulse: Pulse) {
         lastReceived[pulse.source] = pulse.type
+    }
+
+    override fun toString(): String {
+        val state = inputs.joinToString(separator = "") { input -> lastReceived[input]!!.name.substring(0, 1) }
+        return "C{$state}"
+    }
+
+    override fun hashCode(): Int = lastReceived.hashCode()
+
+    override fun equals(other: Any?): Boolean {
+        return if (other is ConjunctionState) {
+            lastReceived == other.lastReceived
+        } else {
+            false
+        }
     }
 }
 
