@@ -7,5 +7,4 @@ fun parseLine(line: String): Game {
     val (left, right) = line.split(":")
     return Game(left.substring(5).toInt(), right.split(";").flatMap { it.split(",") }.map { val (num, color) = it.trim().split(" "); color to num.toInt()})
 }
-
 data class Game(val id: Int, val draws: List<Pair<String, Int>>)
